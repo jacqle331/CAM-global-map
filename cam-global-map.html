@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Christians at Microsoft — CAM Global Map</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Open+Sans:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background: #f0ece0;
+            color: #1a2f5a;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ── HEADER ── */
+        .header {
+            background: linear-gradient(135deg, #0f1f42 0%, #1a3066 60%, #1e3c7a 100%);
+            color: white;
+            padding: 14px 24px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+            z-index: 10;
+            position: relative;
+        }
+
+        .header-left { display: flex; align-items: center; gap: 14px; }
+
+        .cross-emblem {
+            width: 44px; height: 44px;
+            background: rgba(212, 175, 55, 0.15);
+            border: 1.5px solid #d4af37;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 1.55rem;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 0.5px;
+        }
+        .header h1 em { color: #d4af37; font-style: normal; }
+
+        .header-sub {
+            font-size: 0.76rem;
+            opacity: 0.72;
+            letter-spacing: 0.8px;
+            margin-top: 2px;
+            text-transform: uppercase;
+        }
+
+        .header-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+        }
+
+        /* Microsoft logo */
+        .ms-logo {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            opacity: 0.9;
+        }
+        .ms-squares { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; width: 18px; height: 18px; }
+        .ms-squares span { display: block; }
+        .ms-logo-text { font-size: 0.8rem; font-family: 'Segoe UI', sans-serif; font-weight: 600; color: white; }
+
+        .member-badge {
+            background: rgba(212,175,55,0.18);
+            border: 1px solid rgba(212,175,55,0.5);
+            color: #d4af37;
+            padding: 3px 12px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* ── CONTROLS BAR ── */
+        .controls {
+            background: white;
+            padding: 8px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            border-bottom: 1px solid #e5e0d5;
+            z-index: 9;
+        }
+        .controls-left { display: flex; gap: 8px; align-items: center; }
+        .controls-hint { font-size: 0.76rem; color: #aaa; }
+
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Open Sans', sans-serif;
+            font-size: 0.82rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.18s;
+        }
+        .btn-gold    { background: #d4af37; color: #0f1f42; }
+        .btn-gold:hover { background: #c09b20; box-shadow: 0 2px 8px rgba(212,175,55,0.4); }
+        .btn-navy    { background: #1a3066; color: white; }
+        .btn-navy:hover { background: #0f1f42; }
+        .btn-ghost   { background: transparent; color: #1a3066; border: 1px solid #ccc; }
+        .btn-ghost:hover { background: #f0ece0; }
+
+        /* ── MAP ── */
+        #map {
+            flex: 1;
+            min-height: 0;
+        }
+
+        /* Custom cluster */
+        .cam-cluster {
+            background: rgba(192, 57, 43, 0.88) !important;
+            color: white;
+            font-weight: 700;
+            font-size: 13px;
+            border: 2.5px solid white;
+            border-radius: 50%;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        /* Popup */
+        .cam-popup { font-family: 'Open Sans', sans-serif; min-width: 170px; }
+        .cam-popup-header {
+            background: #1a3066;
+            color: white;
+            margin: -10px -10px 10px;
+            padding: 8px 12px;
+            border-radius: 4px 4px 0 0;
+            font-weight: 600;
+            font-size: 0.88rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cam-popup-name { font-weight: 600; color: #1a2f5a; font-size: 0.9rem; }
+        .cam-popup-role { color: #666; font-size: 0.8rem; margin-top: 2px; }
+        .cam-popup-new {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* ── MODAL ── */
+        .overlay {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .overlay.open { opacity: 1; pointer-events: all; }
+
+        .modal {
+            background: white;
+            border-radius: 14px;
+            padding: 28px;
+            max-width: 460px;
+            width: calc(100% - 32px);
+            box-shadow: 0 24px 64px rgba(0,0,0,0.25);
+            transform: translateY(16px);
+            transition: transform 0.2s;
+            position: relative;
+        }
+        .overlay.open .modal { transform: translateY(0); }
+
+        .modal-close {
+            position: absolute; top: 14px; right: 16px;
+            background: none; border: none; font-size: 1.2rem;
+            color: #aaa; cursor: pointer; line-height: 1;
+        }
+        .modal-close:hover { color: #333; }
+
+        .modal-icon { font-size: 2rem; margin-bottom: 8px; }
+        .modal h2 {
+            font-family: 'Cinzel', serif;
+            color: #1a2f5a;
+            font-size: 1.25rem;
+            margin-bottom: 4px;
+        }
+        .modal-sub { color: #888; font-size: 0.82rem; margin-bottom: 22px; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #1a2f5a;
+            font-size: 0.82rem;
+            margin-bottom: 5px;
+        }
+        .form-group label .optional { font-weight: 400; color: #bbb; }
+        .form-group input {
+            width: 100%;
+            padding: 10px 13px;
+            border: 1.5px solid #ddd;
+            border-radius: 7px;
+            font-family: 'Open Sans', sans-serif;
+            font-size: 0.88rem;
+            color: #1a2f5a;
+            transition: border-color 0.2s;
+            background: #fafafa;
+        }
+        .form-group input:focus { outline: none; border-color: #1a3066; background: white; }
+
+        .form-actions { display: flex; gap: 10px; margin-top: 18px; }
+        .form-actions .btn { flex: 1; justify-content: center; padding: 10px; }
+
+        .status {
+            border-radius: 7px;
+            padding: 9px 13px;
+            font-size: 0.82rem;
+            margin-top: 10px;
+            display: none;
+        }
+        .status.show { display: block; }
+        .status.loading { background: #eef3ff; color: #1a3066; }
+        .status.success { background: #e6f9ee; color: #0d7341; }
+        .status.error   { background: #fce8e8; color: #c0392b; }
+
+        .modal-footer {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1px solid #f0f0f0;
+            font-size: 0.74rem;
+            color: #bbb;
+            text-align: center;
+            line-height: 1.5;
+        }
+
+        /* ── FOOTER ── */
+        .footer {
+            background: #0f1f42;
+            color: rgba(255,255,255,0.6);
+            text-align: center;
+            padding: 9px 20px;
+            font-size: 0.76rem;
+            flex-shrink: 0;
+            line-height: 1.6;
+        }
+        .footer .verse {
+            color: #d4af37;
+            font-style: italic;
+            font-size: 0.84rem;
+        }
+
+        /* Leaflet cluster override */
+        .marker-cluster-small,
+        .marker-cluster-medium,
+        .marker-cluster-large { background-color: rgba(192,57,43,0.25) !important; }
+        .marker-cluster-small div,
+        .marker-cluster-medium div,
+        .marker-cluster-large div {
+            background-color: rgba(192,57,43,0.9) !important;
+            color: white !important;
+            font-weight: 700 !important;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 { font-size: 1.15rem; }
+            .header-sub { display: none; }
+            .controls-hint { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════ -->
+<div class="header">
+    <div class="header-left">
+        <div class="cross-emblem">✝</div>
+        <div>
+            <h1><em>Christians</em> at Microsoft</h1>
+            <div class="header-sub">CAM Community · Where We're Joining From</div>
+        </div>
+    </div>
+    <div class="header-right">
+        <div class="ms-logo">
+            <div class="ms-squares">
+                <span style="background:#f25022"></span>
+                <span style="background:#7fba00"></span>
+                <span style="background:#00a4ef"></span>
+                <span style="background:#ffb900"></span>
+            </div>
+            <span class="ms-logo-text">Microsoft</span>
+        </div>
+        <div class="member-badge" id="memberBadge">🌍 Loading…</div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     CONTROLS
+══════════════════════════════════════════ -->
+<div class="controls">
+    <div class="controls-left">
+        <button class="btn btn-gold" onclick="openModal()">✝ Add Your Location</button>
+        <button class="btn btn-ghost" onclick="resetView()">🌍 Reset View</button>
+        <button class="btn btn-ghost" onclick="exportPins()" title="Download pins as JSON for admin use">⬇ Export Pins</button>
+    </div>
+    <div class="controls-hint">Click any pin for details · Scroll to zoom · Drag to pan</div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     MAP
+══════════════════════════════════════════ -->
+<div id="map"></div>
+
+<!-- ══════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════ -->
+<div class="footer">
+    <div class="verse">"For where two or three gather in my name, there am I with them." — Matthew 18:20</div>
+    Christians at Microsoft (CAM) &nbsp;·&nbsp; Global Community Map
+</div>
+
+<!-- ══════════════════════════════════════════
+     ADD LOCATION MODAL
+══════════════════════════════════════════ -->
+<div class="overlay" id="overlay">
+    <div class="modal">
+        <button class="modal-close" onclick="closeModal()">✕</button>
+        <div class="modal-icon">📍</div>
+        <h2>Add Your Location</h2>
+        <div class="modal-sub">Your pin will appear on the map right away!</div>
+
+        <div class="form-group">
+            <label>Your Name *</label>
+            <input type="text" id="inpName" placeholder="e.g. Sarah Johnson" autocomplete="name" />
+        </div>
+        <div class="form-group">
+            <label>City / Location *</label>
+            <input type="text" id="inpLocation" placeholder="e.g. Austin, TX  or  Nairobi, Kenya" />
+        </div>
+        <div class="form-group">
+            <label>Role / Team <span class="optional">(optional)</span></label>
+            <input type="text" id="inpRole" placeholder="e.g. Senior PM, Cloud + AI" />
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="form-actions">
+            <button class="btn btn-gold" onclick="submitPin()">📍 Add My Pin</button>
+            <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        </div>
+
+        <div class="modal-footer">
+            Your pin is saved locally on this device and visible to you immediately.<br>
+            Share the updated map file with the CAM admin to add you permanently.
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SCRIPTS
+══════════════════════════════════════════ -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+/* ══════════════════════════════════════════
+   SEED DATA — from June 2026 CAM Townhall
+   Edit this array to add/remove members
+   ══════════════════════════════════════════ */
+const SEED_MEMBERS = [
+    // Pacific Northwest
+    { name: "CAM Member", location: "Whidbey Island, WA",          lat: 48.1740,  lng: -122.6268 },
+    { name: "CAM Member", location: "Woodinville, WA",             lat: 47.7543,  lng: -122.1637 },
+    { name: "CAM Member", location: "Sammamish, WA",               lat: 47.6163,  lng: -122.0356 },
+    { name: "CAM Member", location: "Seattle, WA",                 lat: 47.6062,  lng: -122.3321 },
+    { name: "CAM Member", location: "Redmond, WA",                 lat: 47.6740,  lng: -122.1215 },
+    { name: "CAM Member", location: "Redmond, WA",                 lat: 47.6820,  lng: -122.1260 },
+    // Canada
+    { name: "CAM Member", location: "Vancouver, BC",               lat: 49.2827,  lng: -123.1207 },
+    { name: "CAM Member", location: "Toronto, ON",                 lat: 43.6532,  lng:  -79.3832 },
+    { name: "CAM Member", location: "Ontario, Canada",             lat: 44.2195,  lng:  -76.4918 },
+    // Great Plains / Midwest
+    { name: "CAM Member", location: "West Fargo, ND",              lat: 46.8772,  lng:  -96.9003 },
+    { name: "CAM Member", location: "Council Bluffs, IA",          lat: 41.2619,  lng:  -95.8608 },
+    { name: "CAM Member", location: "Chicago, IL",                 lat: 41.8781,  lng:  -87.6298 },
+    { name: "CAM Member", location: "St. Louis, MO",               lat: 38.6270,  lng:  -90.1994 },
+    // Northeast
+    { name: "CAM Member", location: "Boston, MA",                  lat: 42.3601,  lng:  -71.0589 },
+    { name: "CAM Member", location: "Pittsburgh, PA",              lat: 40.4406,  lng:  -79.9959 },
+    { name: "CAM Member", location: "DMV (DC/MD/VA)",              lat: 38.9072,  lng:  -77.0369 },
+    // Mountain West
+    { name: "CAM Member", location: "Denver / Littleton, CO",      lat: 39.6133,  lng: -105.0166 },
+    // West Coast
+    { name: "CAM Member", location: "Mountain View (Bay Area), CA",lat: 37.3861,  lng: -122.0839 },
+    { name: "CAM Member", location: "Los Angeles, CA",             lat: 34.0522,  lng: -118.2437 },
+    // Southwest
+    { name: "CAM Member", location: "Hereford, AZ",                lat: 31.4565,  lng: -110.1476 },
+    // Texas
+    { name: "CAM Member", location: "Dallas – Fort Worth, TX",     lat: 32.7767,  lng:  -96.7970 },
+    { name: "CAM Member", location: "Fort Worth area, TX",         lat: 32.7555,  lng:  -97.3308 },
+    { name: "CAM Member", location: "Plano, TX",                   lat: 33.0198,  lng:  -96.6989 },
+    { name: "CAM Member", location: "Georgetown, TX",              lat: 30.6328,  lng:  -97.6775 },
+    { name: "CAM Member", location: "Austin, TX",                  lat: 30.2672,  lng:  -97.7431 },
+    { name: "CAM Member", location: "San Antonio, TX",             lat: 29.4241,  lng:  -98.4936 },
+    { name: "CAM Member", location: "Boerne, TX",                  lat: 29.7946,  lng:  -98.7320 },
+    // Southeast
+    { name: "CAM Member", location: "Nashville, TN",               lat: 36.1627,  lng:  -86.7816 },
+    { name: "CAM Member", location: "Winston-Salem, NC",           lat: 36.0999,  lng:  -80.2442 },
+    { name: "CAM Member", location: "Charlotte, NC",               lat: 35.2271,  lng:  -80.8431 },
+    { name: "CAM Member", location: "Atlanta, GA",                 lat: 33.7490,  lng:  -84.3880 },
+    { name: "CAM Member", location: "Tampa, FL",                   lat: 27.9506,  lng:  -82.4572 },
+    { name: "CAM Member", location: "Panama City Beach, FL",       lat: 30.1766,  lng:  -85.8055 },
+    { name: "CAM Member", location: "Boca Raton, FL",              lat: 26.3683,  lng:  -80.1289 },
+    // International
+    { name: "CAM Member", location: "Panama City, Panama",         lat:  8.9936,  lng:  -79.5197 },
+    { name: "CAM Member", location: "Nairobi, Kenya",              lat: -1.2921,  lng:   36.8219 },
+    { name: "CAM Member", location: "India",                       lat: 20.5937,  lng:   78.9629 },
+];
+
+/* ══════════════════════════════════════════
+   MAP SETUP
+══════════════════════════════════════════ */
+const map = L.map('map', {
+    center: [28, -30],
+    zoom: 3,
+    minZoom: 2,
+    maxZoom: 18,
+    zoomControl: true
+});
+
+// Clean light basemap (CartoDB Positron)
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+}).addTo(map);
+
+// Cluster group
+const clusterGroup = L.markerClusterGroup({
+    maxClusterRadius: 45,
+    iconCreateFunction(cluster) {
+        const n = cluster.getChildCount();
+        return L.divIcon({
+            html: `<div style="
+                background:rgba(192,57,43,0.92);
+                color:white;border-radius:50%;
+                width:36px;height:36px;
+                display:flex;align-items:center;justify-content:center;
+                font-weight:700;font-size:13px;
+                border:2.5px solid white;
+                box-shadow:0 2px 8px rgba(0,0,0,0.3);
+                font-family:'Open Sans',sans-serif;
+            ">${n}</div>`,
+            className: '', iconSize: [36,36], iconAnchor: [18,18]
+        });
+    }
+});
+
+/* ══════════════════════════════════════════
+   MARKER HELPERS
+══════════════════════════════════════════ */
+function makeIcon(isNew) {
+    const color = isNew ? '#27ae60' : '#c0392b';
+    return L.divIcon({
+        html: `<div style="
+            width:28px;height:28px;
+            background:${color};
+            border:2px solid white;
+            border-radius:50% 50% 50% 0;
+            transform:rotate(-45deg);
+            display:flex;align-items:center;justify-content:center;
+            box-shadow:0 2px 6px rgba(0,0,0,0.4);
+        "><span style="transform:rotate(45deg);color:white;font-size:11px;font-weight:700;line-height:1;">✝</span></div>`,
+        className: '',
+        iconSize: [28, 28],
+        iconAnchor: [14, 28],
+        popupAnchor: [1, -30]
+    });
+}
+
+function makePopup(m, isNew) {
+    const newBadge = isNew ? `<span class="cam-popup-new">NEW</span>` : '';
+    return `<div class="cam-popup">
+        <div class="cam-popup-header">✝ ${m.location}${newBadge}</div>
+        <div class="cam-popup-name">${m.name}</div>
+        ${m.role ? `<div class="cam-popup-role">${m.role}</div>` : ''}
+    </div>`;
+}
+
+function addPin(m, isNew = false) {
+    const marker = L.marker([m.lat, m.lng], { icon: makeIcon(isNew) });
+    marker.bindPopup(makePopup(m, isNew), { maxWidth: 220 });
+    clusterGroup.addLayer(marker);
+}
+
+/* ══════════════════════════════════════════
+   LOAD ALL DATA
+══════════════════════════════════════════ */
+function loadMembers() {
+    SEED_MEMBERS.forEach(m => addPin(m, false));
+
+    const local = JSON.parse(localStorage.getItem('cam_pins') || '[]');
+    local.forEach(m => addPin(m, true));
+
+    map.addLayer(clusterGroup);
+    refreshBadge();
+}
+
+function refreshBadge() {
+    const local = JSON.parse(localStorage.getItem('cam_pins') || '[]');
+    const total = SEED_MEMBERS.length + local.length;
+    document.getElementById('memberBadge').textContent = `🌍 ${total} member${total !== 1 ? 's' : ''} on the map`;
+}
+
+function resetView() {
+    map.setView([28, -30], 3);
+}
+
+/* ══════════════════════════════════════════
+   EXPORT (ADMIN)
+══════════════════════════════════════════ */
+function exportPins() {
+    const local = JSON.parse(localStorage.getItem('cam_pins') || '[]');
+    const all = [...SEED_MEMBERS, ...local];
+    const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `cam-members-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+/* ══════════════════════════════════════════
+   ADD LOCATION MODAL
+══════════════════════════════════════════ */
+function openModal() {
+    document.getElementById('overlay').classList.add('open');
+    setTimeout(() => document.getElementById('inpName').focus(), 200);
+}
+
+function closeModal() {
+    document.getElementById('overlay').classList.remove('open');
+    ['inpName','inpLocation','inpRole'].forEach(id => document.getElementById(id).value = '');
+    setStatus('', '');
+}
+
+function setStatus(type, msg) {
+    const el = document.getElementById('status');
+    el.className = `status${type ? ' show ' + type : ''}`;
+    el.textContent = msg;
+}
+
+async function submitPin() {
+    const name     = document.getElementById('inpName').value.trim();
+    const location = document.getElementById('inpLocation').value.trim();
+    const role     = document.getElementById('inpRole').value.trim();
+
+    if (!name || !location) {
+        setStatus('error', '⚠ Please enter your name and location.');
+        return;
+    }
+
+    setStatus('loading', '🔍 Looking up your location…');
+
+    try {
+        const res  = await fetch(
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(location)}&limit=1`,
+            { headers: { 'Accept-Language': 'en-US,en' } }
+        );
+        const data = await res.json();
+
+        if (!data || data.length === 0) {
+            setStatus('error', '❌ Location not found. Try "City, State" or "City, Country".');
+            return;
+        }
+
+        const pin = {
+            name,
+            location,
+            lat:  parseFloat(data[0].lat),
+            lng:  parseFloat(data[0].lon),
+            role: role || 'CAM Member',
+            addedAt: new Date().toISOString()
+        };
+
+        // Save locally
+        const saved = JSON.parse(localStorage.getItem('cam_pins') || '[]');
+        saved.push(pin);
+        localStorage.setItem('cam_pins', JSON.stringify(saved));
+
+        // Add to map
+        addPin(pin, true);
+        refreshBadge();
+
+        // Fly to pin
+        map.flyTo([pin.lat, pin.lng], 9, { duration: 1.5 });
+
+        setStatus('success', `✅ Welcome to the map, ${name}! Your pin is live.`);
+        setTimeout(closeModal, 2600);
+
+    } catch (err) {
+        setStatus('error', '❌ Network error. Check your connection and try again.');
+    }
+}
+
+/* ══════════════════════════════════════════
+   KEYBOARD
+══════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if ((e.key === 'Enter') && document.getElementById('overlay').classList.contains('open')) {
+        // Only submit if not already in a specific input with autocomplete
+        if (document.activeElement.tagName !== 'BUTTON') submitPin();
+    }
+});
+
+/* ══════════════════════════════════════════
+   INIT
+══════════════════════════════════════════ */
+loadMembers();
+</script>
+</body>
+</html>
